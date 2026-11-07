@@ -22,8 +22,8 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * Who gets a reply:
  *  - a person he added with agent_contact_set: after that person's min_messages unanswered messages (default 1)
- *  - an unknown person who writes "hello Vision" (or another name word): a polite "I don't know you, who are
- *    you?" reply, and he is told in the chat
+ *  - an unknown person who writes "hello Vision" (or another name word): a polite "I don't know you, who
+ *    are you?" reply, and he is told in the chat
  *  - an unknown person after unknown_after unanswered messages, only if he set that number (default 0 = off)
  *  - everybody else is ignored and handled by the old "tell me about it" flow
  * Group chats are never answered. Messages about money or codes are never answered (SafetyRules).
