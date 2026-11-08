@@ -30,6 +30,13 @@ object AgentStore {
     /** If an unknown person writes "hello Vision", Vision answers politely and tells him. */
     var replyOnName = true
     var maxPerHour = 20
+    /** Seconds to wait before an automatic notification reply. He sets it; 0 = answer at once. */
+    var delaySec = 0
+    /** Live chat loop: how often the screen is checked, and when a conversation ends by itself at the latest. */
+    var watchSeconds = 2
+    var maxMessages = 30
+    var maxMinutes = 30
+    var idleMinutes = 10
     var triggers: List<String> = listOf("vision", "jarvis", "hello ai", "hi ai", "hey ai", "ai assistant")
 
     fun init(ctx: Context) {
@@ -42,6 +49,11 @@ object AgentStore {
                 unknownAfter = o.optInt("unknownAfter", 0)
                 replyOnName = o.optBoolean("replyOnName", true)
                 maxPerHour = o.optInt("maxPerHour", 20)
+                delaySec = o.optInt("delaySec", 0)
+                watchSeconds = o.optInt("watchSeconds", 2)
+                maxMessages = o.optInt("maxMessages", 30)
+                maxMinutes = o.optInt("maxMinutes", 30)
+                idleMinutes = o.optInt("idleMinutes", 10)
                 o.optJSONArray("triggers")?.let { a -> triggers = (0 until a.length()).map { a.getString(it) } }
                 val arr = o.optJSONArray("contacts") ?: JSONArray()
                 for (i in 0 until arr.length()) {
@@ -66,6 +78,8 @@ object AgentStore {
         }
         val o = JSONObject().put("unknownAfter", unknownAfter).put("replyOnName", replyOnName)
             .put("maxPerHour", maxPerHour).put("triggers", JSONArray(triggers)).put("contacts", arr)
+            .put("delaySec", delaySec).put("watchSeconds", watchSeconds).put("maxMessages", maxMessages)
+            .put("maxMinutes", maxMinutes).put("idleMinutes", idleMinutes)
         runCatching { file.writeText(o.toString()) }
     }
 
@@ -110,7 +124,8 @@ object AgentStore {
             sb.append("Unknown people: reply when they say ").append(triggers.joinToString("/"))
                 .append(if (replyOnName) "" else " (switched off)").append("; ")
                 .append(if (unknownAfter > 0) "or after $unknownAfter unanswered messages" else "no reply just because of message count")
-                .append(". Max replies per person per hour: $maxPerHour.\n")
+                .append(". Max replies per person per hour: $maxPerHour. Reply delay: $delaySec s. ")
+                .append("Live chat: screen check every $watchSeconds s, ends after $maxMessages messages, $maxMinutes min, or $idleMinutes min of silence.\n")
             if (contacts.isEmpty()) sb.append("No people added yet.")
             contacts.values.forEach {
                 sb.append("- ").append(it.names.joinToString(" / ")).append(" (min ").append(it.minMessages)
@@ -138,12 +153,32 @@ object AgentStore {
                     val n = v.toIntOrNull() ?: return "Give a number."
                     maxPerHour = n.coerceIn(1, 200); "Max replies per person per hour: $maxPerHour."
                 }
+                "reply_delay" -> {
+                    val n = v.toIntOrNull() ?: return "Give a number of seconds. 0 means answer at once."
+                    delaySec = n.coerceIn(0, 600); "Wait before an automatic reply: $delaySec seconds."
+                }
+                "watch_seconds" -> {
+                    val n = v.toIntOrNull() ?: return "Give a number of seconds."
+                    watchSeconds = n.coerceIn(1, 30); "In a live chat I check the screen every $watchSeconds seconds."
+                }
+                "max_messages" -> {
+                    val n = v.toIntOrNull() ?: return "Give a number."
+                    maxMessages = n.coerceIn(1, 500); "A live chat ends by itself after $maxMessages messages from me."
+                }
+                "max_minutes" -> {
+                    val n = v.toIntOrNull() ?: return "Give a number of minutes."
+                    maxMinutes = n.coerceIn(1, 600); "A live chat ends by itself after $maxMinutes minutes."
+                }
+                "idle_minutes" -> {
+                    val n = v.toIntOrNull() ?: return "Give a number of minutes."
+                    idleMinutes = n.coerceIn(1, 600); "A live chat ends if nobody writes for $idleMinutes minutes."
+                }
                 "triggers" -> {
                     val list = v.split(',').map { it.trim().lowercase() }.filter { it.length >= 2 }
                     if (list.isEmpty()) return "Give words separated by commas."
                     triggers = list; "Name words are now: ${list.joinToString(", ")}."
                 }
-                else -> return "Unknown setting. Use agent, unknown_after, reply_on_name, max_per_hour or triggers."
+                else -> return "Unknown setting. Use agent, unknown_after, reply_on_name, max_per_hour, reply_delay, watch_seconds, max_messages, max_minutes, idle_minutes or triggers."
             }
             save()
             return msg
