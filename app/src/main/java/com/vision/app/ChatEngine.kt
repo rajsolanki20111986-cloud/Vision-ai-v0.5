@@ -128,6 +128,57 @@ object ChatEngine {
             }
         }
 
+    /**
+     * One task step for the live-chat agent: the model may call the phone tools several times
+     * and then gives a final text. Separate from the shared chat history. onTool sees each call.
+     */
+    suspend fun agentLoop(
+        app: Context, system: String, userText: String, maxRounds: Int,
+        onTool: (String, JSONObject) -> Unit
+    ): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val contents = JSONArray().put(JSONObject().put("role", "user")
+                .put("parts", JSONArray().put(JSONObject().put("text", userText))))
+            val tools = JSONArray().put(JSONObject().put("functionDeclarations", ToolRouter.declarations()))
+            for (step in 0 until maxRounds) {
+                val body = JSONObject()
+                    .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", system))))
+                    .put("contents", contents)
+                    .put("tools", tools)
+                val json = post(body).getOrThrow()
+                val content = json.optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")
+                    ?: throw IllegalStateException("empty answer from the model")
+                val parts = content.optJSONArray("parts") ?: JSONArray()
+                val calls = ArrayList<JSONObject>()
+                val text = StringBuilder()
+                for (i in 0 until parts.length()) {
+                    val p = parts.getJSONObject(i)
+                    p.optJSONObject("functionCall")?.let { calls.add(it) }
+                    p.optString("text", "").takeIf { it.isNotEmpty() }?.let { text.append(it) }
+                }
+                if (calls.isEmpty()) return@runCatching text.toString().ifBlank { "WAIT" }
+                contents.put(JSONObject().put("role", "model").put("parts", parts))
+                val responses = JSONArray()
+                for (c in calls) {
+                    val name = c.optString("name")
+                    val args = c.optJSONObject("args") ?: JSONObject()
+                    onTool(name, args)
+                    var result = try {
+                        ToolRouter.run(app, name, args)
+                    } catch (e: Exception) {
+                        "error: ${e.message}"
+                    }
+                    if (result.startsWith("IMG:")) result = "Screenshots are not available here. Use read_screen."
+                    responses.put(JSONObject().put("functionResponse", JSONObject()
+                        .put("name", name)
+                        .put("response", JSONObject().put("result", result))))
+                }
+                contents.put(JSONObject().put("role", "user").put("parts", responses))
+            }
+            "WAIT"
+        }
+    }
+
     private fun post(body: JSONObject): Result<JSONObject> = runCatching {
         val req = Request.Builder()
             .url(URL)
