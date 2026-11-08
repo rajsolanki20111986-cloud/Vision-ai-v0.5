@@ -50,6 +50,10 @@ object ToolRouter {
         put(d("agent_settings", "Change an agent setting. Use ONLY when he himself asks.",
             "setting" to "one of: agent, unknown_after, reply_on_name, max_per_hour, triggers",
             "value" to "on or off, a number, or words separated by commas"))
+        put(d("converse_start", "Start a live conversation with a person in ANY chat app. You open the app, find the person, write, watch the screen for replies, answer, and end the conversation yourself when it is done or pointless. Use when he asks you to talk to or message someone.",
+            "task" to "who to talk to, in which app, what to achieve, and what to say first"))
+        put(d("converse_stop", "End the live conversation now."))
+        put(d("converse_status", "Say whether a live conversation is running and what was sent."))
         put(d("agent_log", "Show what the agent answered or skipped recently."))
         put(d("gmail_search", "Search his Gmail and list matching emails with sender, subject and a snippet.",
             "query" to "Gmail search, e.g. 'from:school newer_than:3d'"))
@@ -89,6 +93,9 @@ object ToolRouter {
             "agent_contacts" -> return AgentStore.describe()
             "agent_settings" -> return AgentStore.setSetting(a.optString("setting"), a.optString("value"))
             "agent_log" -> return AgentStore.recent(20)
+            "converse_start" -> return ScreenAgent.start(app, a.optString("task"))
+            "converse_stop" -> return ScreenAgent.stop("He asked me to stop.")
+            "converse_status" -> return ScreenAgent.status()
             "gmail_search" -> return GmailTool.search(a.optString("query"))
             "torch" -> return torch(app, a.optString("state") == "on")
             "battery" -> return battery(app)
