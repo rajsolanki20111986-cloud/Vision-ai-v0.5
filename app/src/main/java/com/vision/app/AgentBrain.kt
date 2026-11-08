@@ -75,7 +75,7 @@ object AgentBrain {
 
         jobs[conv]?.cancel()
         jobs[conv] = scope.launch {
-            delay((5000L..9000L).random()) // wait for a burst of messages to finish, and look less robotic
+            if (AgentStore.delaySec > 0) delay(AgentStore.delaySec * 1000L) // he sets this; default 0
             process(ctx.applicationContext, conv, title, mode, contact)
         }
         return true
