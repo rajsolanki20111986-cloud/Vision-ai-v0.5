@@ -1,3 +1,20 @@
+# v0.6 - Fix, power button, live chat agent
+
+## Fixed
+- MemoryStore.kt: the comment had facts/*.md etc. Kotlin treats /* as a new nested comment, so the comment never closed and MemoryStore did not exist ("Unresolved reference: MemoryStore"). Now written as facts/<name>.md.
+
+## New
+- Power button: Vision now appears in Settings > Digital assistant app (VisionAssistService, VisionSessionService, VisionRecognitionService, res/xml/voice_interaction_service.xml, manifest entries). Choose Vision there to start it with the long-press. If Android refuses to start the microphone service from the button, the app opens instead.
+- Live chat agent for ANY chat app (ScreenAgent.kt). Tool converse_start: "WhatsApp par Rahul se baat karo, pucho kal aayega ya nahi". Vision opens the app, finds the person, writes, checks that its message appeared, watches the screen every 2 seconds, answers new messages, and ends the talk by itself (task done, goodbye, pointless or too long, money/code/risk). A short summary is written into the chat as [Agent].
+- It tells his messages from theirs by the list of texts it sent and by the side of the screen the text is on. It does not look for ticks or any app-specific mark. No app is hard-coded.
+- No fixed 5-9 second wait for notification replies any more. reply_delay is a setting (default 0 seconds).
+- Settings he can change by chat (agent_settings): reply_delay, watch_seconds (2), max_messages (30), max_minutes (30), idle_minutes (10), unknown_after, reply_on_name, max_per_hour, triggers.
+
+## Not verified
+- Nothing was compiled or run here. Send the Actions log if the build fails.
+- The live chat needs the screen on and unlocked and the Vision Control accessibility service on.
+- Agent mode (notification replies) still needs testing on a real phone.
+
 # v0.5 - Agent mode (replies by itself)
 
 ## New
